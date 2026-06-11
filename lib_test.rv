@@ -1,0 +1,82 @@
+import std/string
+import std/collections
+import std/test { assert_eq_str, assert_eq_int, assert_true, assert_msg }
+import "./lib" { parse, Toml, Value }
+
+fun toml(text: String) -> Toml {
+    return match parse(text) {
+        Ok(t) -> t,
+        Err(e) -> {
+            assert_msg(false, e.to_string())
+            let d: Map<String, Value> = Map.new()
+            Toml { data: d }
+        },
+    }
+}
+
+fun test_scalars() {
+    let t = toml("name = \"raven\"\nport = 8080\nratio = 1.5\ndebug = true\n")
+    assert_eq_str(t.get_string_or("name", ""), "raven")
+    assert_eq_int(t.get_int_or("port", 0), 8080)
+    assert_true(t.get_bool_or("debug", false))
+    match t.get_float("ratio") {
+        Some(f) -> assert_true(f > 1.0),
+        None -> assert_msg(false, "ratio"),
+    }
+}
+
+fun test_tables() {
+    let t = toml("[server]\nhost = \"0.0.0.0\"\nport = 80\n[db]\nname = \"app\"\n")
+    assert_eq_str(t.get_string_or("server.host", ""), "0.0.0.0")
+    assert_eq_int(t.get_int_or("server.port", 0), 80)
+    assert_eq_str(t.get_string_or("db.name", ""), "app")
+}
+
+fun test_string_escapes() {
+    assert_eq_str(toml("msg = \"a\\nb\"\n").get_string_or("msg", ""), "a\nb")
+}
+
+fun test_comments() {
+    let t = toml("# header\nkey = \"value\"  # trailing\nhash = \"a#b\"\n")
+    assert_eq_str(t.get_string_or("key", ""), "value")
+    assert_eq_str(t.get_string_or("hash", ""), "a#b")
+}
+
+fun test_arrays() {
+    let t = toml("nums = [1, 2, 3]\nwords = [\"a\", \"b\"]\n")
+    match t.get_array("nums") {
+        Some(xs) -> assert_eq_int(xs.len(), 3),
+        None -> assert_msg(false, "nums"),
+    }
+    match t.get_array("words") {
+        Some(xs) -> assert_eq_int(xs.len(), 2),
+        None -> assert_msg(false, "words"),
+    }
+}
+
+fun test_wrong_type_returns_none() {
+    let t = toml("port = 8080\n")
+    match t.get_string("port") {
+        Some(s) -> assert_msg(false, "should be none"),
+        None -> assert_true(true),
+    }
+    assert_eq_str(t.get_string_or("port", "default"), "default")
+}
+
+fun test_default_when_missing() {
+    assert_eq_int(toml("x = 1\n").get_int_or("missing", 99), 99)
+}
+
+fun test_unterminated_string_errors() {
+    match parse("x = \"oops\n") {
+        Ok(t) -> assert_msg(false, "expected error"),
+        Err(e) -> assert_true(e.message.contains("unterminated")),
+    }
+}
+
+fun test_bare_value_errors() {
+    match parse("x = localhost\n") {
+        Ok(t) -> assert_msg(false, "expected error"),
+        Err(e) -> assert_true(e.message.contains("quotes")),
+    }
+}
