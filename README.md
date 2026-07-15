@@ -1,5 +1,7 @@
 # raven-toml
 
+[![CI](https://github.com/martian56/raven-toml/actions/workflows/ci.yml/badge.svg)](https://github.com/martian56/raven-toml/actions/workflows/ci.yml)
+
 Reads a practical subset of TOML: `[tables]` (including dotted `[a.b]`),
 `key = value` entries, `#` comments, and the scalar types (string, int, float,
 bool) plus arrays of them. Values come back typed and are addressed by their
@@ -9,12 +11,12 @@ dotted path. No dependencies.
 
 ```toml
 [dependencies]
-"github.com/martian56/raven-toml" = "0.1"
+"github.com/martian56/raven-toml" = "v0.1.0"
 ```
 
 ## Usage
 
-```raven
+```rust
 import "github.com/martian56/raven-toml" { parse }
 
 let text = "[server]\nhost = \"0.0.0.0\"\nport = 8080\n"
