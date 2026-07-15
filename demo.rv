@@ -8,7 +8,11 @@ fun main() {
     match parse(text) {
         Ok(cfg) -> {
             println("title:  ".concat(cfg.get_string_or("title", "")))
-            println("server: ".concat(cfg.get_string_or("server.host", "")).concat(":").concat(cfg.get_int_or("server.port", 0).to_string()))
+            println(
+                "server: ".concat(cfg.get_string_or("server.host", "")).concat(":").concat(
+                    cfg.get_int_or("server.port", 0).to_string(),
+                ),
+            )
             if cfg.get_bool_or("server.debug", false) {
                 println("debug:  on")
             }
