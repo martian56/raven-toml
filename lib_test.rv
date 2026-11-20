@@ -1,16 +1,16 @@
-import std/string
-import std/collections
-import std/test { assert_eq_str, assert_eq_int, assert_true, assert_msg }
-import "./lib" { parse, Toml, Value }
+import std.string
+import std.collections
+from std.test import assert_eq_str, assert_eq_int, assert_true, assert_msg
+from "./lib" import parse, Toml, Value
 
-fun toml(text: String) -> Toml {
+fun toml(text: str) -> Toml {
     return match parse(text) {
-        Ok(t) -> t,
-        Err(e) -> {
+        case Ok(t) { t }
+        case Err(e) {
             assert_msg(false, e.to_string())
-            let d: Map<String, Value> = Map.new()
-            Toml { data: d }
-        },
+            let d: dict[str, Value] = Map.new()
+            Toml(data: d)
+        }
     }
 }
 
@@ -20,8 +20,8 @@ fun test_scalars() {
     assert_eq_int(t.get_int_or("port", 0), 8080)
     assert_true(t.get_bool_or("debug", false))
     match t.get_float("ratio") {
-        Some(f) -> assert_true(f > 1.0),
-        None -> assert_msg(false, "ratio"),
+        case Some(f) { assert_true(f > 1.0) }
+        case None { assert_msg(false, "ratio") }
     }
 }
 
@@ -45,20 +45,20 @@ fun test_comments() {
 fun test_arrays() {
     let t = toml("nums = [1, 2, 3]\nwords = [\"a\", \"b\"]\n")
     match t.get_array("nums") {
-        Some(xs) -> assert_eq_int(xs.len(), 3),
-        None -> assert_msg(false, "nums"),
+        case Some(xs) { assert_eq_int(xs.len(), 3) }
+        case None { assert_msg(false, "nums") }
     }
     match t.get_array("words") {
-        Some(xs) -> assert_eq_int(xs.len(), 2),
-        None -> assert_msg(false, "words"),
+        case Some(xs) { assert_eq_int(xs.len(), 2) }
+        case None { assert_msg(false, "words") }
     }
 }
 
 fun test_wrong_type_returns_none() {
     let t = toml("port = 8080\n")
     match t.get_string("port") {
-        Some(s) -> assert_msg(false, "should be none"),
-        None -> assert_true(true),
+        case Some(s) { assert_msg(false, "should be none") }
+        case None { assert_true(true) }
     }
     assert_eq_str(t.get_string_or("port", "default"), "default")
 }
@@ -69,14 +69,14 @@ fun test_default_when_missing() {
 
 fun test_unterminated_string_errors() {
     match parse("x = \"oops\n") {
-        Ok(t) -> assert_msg(false, "expected error"),
-        Err(e) -> assert_true(e.message.contains("unterminated")),
+        case Ok(t) { assert_msg(false, "expected error") }
+        case Err(e) { assert_true(e.message.contains("unterminated")) }
     }
 }
 
 fun test_bare_value_errors() {
     match parse("x = localhost\n") {
-        Ok(t) -> assert_msg(false, "expected error"),
-        Err(e) -> assert_true(e.message.contains("quotes")),
+        case Ok(t) { assert_msg(false, "expected error") }
+        case Err(e) { assert_true(e.message.contains("quotes")) }
     }
 }

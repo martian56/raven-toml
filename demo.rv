@@ -1,12 +1,12 @@
-// Build and run: raven build demo.rv -o demo && ./demo
-import std/io { println }
-import std/string
-import "./lib" { parse }
+// Build and run: raven build demo.rv -o demo and ./demo
+from std.io import println
+import std.string
+from "./lib" import parse
 
 fun main() {
     let text = "title = \"Raven Config\"\n\n[server]\nhost = \"0.0.0.0\"\nport = 8080\ndebug = true\n\n[limits]\nratio = 0.75\n"
     match parse(text) {
-        Ok(cfg) -> {
+        case Ok(cfg) {
             println("title:  ".concat(cfg.get_string_or("title", "")))
             println(
                 "server: ".concat(cfg.get_string_or("server.host", "")).concat(":").concat(
@@ -16,7 +16,7 @@ fun main() {
             if cfg.get_bool_or("server.debug", false) {
                 println("debug:  on")
             }
-        },
-        Err(e) -> println(e.to_string()),
+        }
+        case Err(e) { println(e.to_string()) }
     }
 }

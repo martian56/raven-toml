@@ -17,15 +17,15 @@ dotted path. No dependencies.
 ## Usage
 
 ```rust
-import "github.com/martian56/raven-toml" { parse }
+from "github.com/martian56/raven-toml" import parse
 
 let text = "[server]\nhost = \"0.0.0.0\"\nport = 8080\n"
 match parse(text) {
-    Ok(t) -> {
+    case Ok(t) {
         let host = t.get_string_or("server.host", "localhost")
         let port = t.get_int_or("server.port", 80)
-    },
-    Err(e) -> print(e.to_string()),   // "toml:3: unterminated string"
+    }
+    case Err(e) { print(e.to_string()) }   // "toml:3: unterminated string"
 }
 ```
 
@@ -34,14 +34,14 @@ a key under `[server]` is `"server.host"`.
 
 ## Reading values
 
-The getters come in two shapes. `get_string(key)` returns an `Option<String>`,
+The getters come in two shapes. `get_string(key)` returns an `Option[str]`,
 and `get_string_or(key, fallback)` gives you the value or a default. It's the
 same for `int` and `bool` (and `get_float`, which has no `_or` form). A getter
 returns nothing when the key is missing or holds a different type, so asking for
 an int on a string key just hands back the default.
 
-`get_array(key)` returns `Option<List<Value>>`, where `Value` is the enum the
-parser produces (`Str`, `Int`, `Float`, `Bool`, `Array`). If you'd rather match
+`get_array(key)` returns `Option[list[Value]]`, where `Value` is the enum the
+parser produces (`Str`, `int`, `float`, `bool`, `Array`). If you'd rather match
 on the raw value yourself, `get(key)` gives you the `Value` directly.
 
 ## What's supported
