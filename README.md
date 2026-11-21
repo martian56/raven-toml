@@ -53,8 +53,7 @@ Datetimes, inline tables, and arrays of tables are not handled.
 
 ## Requirements
 
-Needs raven 2.18.59 or newer. The typed getters use a nested match that earlier
-compilers mis-inferred.
+Needs Raven 3.0.0 or newer.
 
 ## License
 
