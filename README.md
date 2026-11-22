@@ -11,7 +11,7 @@ dotted path. No dependencies.
 
 ```toml
 [dependencies]
-"github.com/martian56/raven-toml" = "v0.2.0"
+"github.com/martian56/raven-toml" = "v0.3.0"
 ```
 
 ## Usage
@@ -46,10 +46,15 @@ on the raw value yourself, `get(key)` gives you the `Value` directly.
 
 ## What's supported
 
-Tables and dotted tables, `key = value`, `#` comments (including after a value,
+Tables and dotted tables, arrays of tables (`[[plugin]]`), bare and quoted keys
+(`"ctrl+s" = "save"`), `key = value`, `#` comments (including after a value,
 outside quotes), strings with `\n` `\t` `\r` escapes, and single-line arrays.
 Strings have to be quoted, as in real TOML, so a bare word is an error.
-Datetimes, inline tables, and arrays of tables are not handled.
+Datetimes and inline tables are not handled.
+
+`t.tables("plugin")` returns each `[[plugin]]` entry as its own `Toml`,
+`t.keys("keys")` lists the keys directly inside a table in file order, and
+`t.get_strings("args")` reads an array of strings.
 
 ## Requirements
 
