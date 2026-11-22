@@ -80,3 +80,31 @@ fun test_bare_value_errors() {
         case Err(e) { assert_true(e.message.contains("quotes")) }
     }
 }
+
+fun test_array_of_tables() {
+    let src = "[[plugin]]\nname = \"fmt\"\nargs = [\"fmt\", \"{file}\"]\n\n[[plugin]]\nname = \"sort\"\n"
+    let t = parse(src).unwrap()
+    let ps = t.tables("plugin")
+    assert_eq_int(ps.len(), 2)
+    assert_eq_str(ps[0].get_string_or("name", ""), "fmt")
+    assert_eq_int(ps[0].get_strings("args").len(), 2)
+    assert_eq_str(ps[1].get_string_or("name", ""), "sort")
+    assert_eq_int(t.tables("missing").len(), 0)
+}
+
+fun test_quoted_keys_and_listing() {
+    let src = "[keys]\n\"ctrl+s\" = \"save\"\n\"a = b\" = \"odd\"\ngg = \"top\"\n[keys.insert]\nx = \"y\"\n"
+    let t = parse(src).unwrap()
+    assert_eq_str(t.get_string_or("keys.ctrl+s", ""), "save")
+    assert_eq_str(t.get_string_or("keys.a = b", ""), "odd")
+    let ks = t.keys("keys")
+    assert_eq_int(ks.len(), 3)
+    assert_eq_str(ks[0], "ctrl+s")
+    assert_eq_str(ks[2], "gg")
+    assert_eq_int(t.keys("keys.insert").len(), 1)
+}
+
+fun test_escaped_quote_before_comment() {
+    let t = parse("s = \"a\\\"b\" # note\n").unwrap()
+    assert_eq_str(t.get_string_or("s", ""), "a\"b")
+}

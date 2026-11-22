@@ -3,14 +3,15 @@
 //     from "github.com/martian56/raven-toml" import parse
 //
 //     match parse(text) {
-//         Ok(t) -> {
+//         case Ok(t) {
 //             let host = t.get_string_or("server.host", "localhost")
 //             let port = t.get_int_or("server.port", 8080)
-//         },
-//         Err(e) -> print(e.to_string()),
+//         }
+//         case Err(e) { print(e.to_string()) }
 //     }
 //
-// Supported: [tables] and [dotted.tables], key = value, # comments, and the
+// Supported: [tables], [dotted.tables], [[arrays.of.tables]], bare and quoted
+// keys, key = value, # comments, and the
 // scalar types string (double-quoted, with \n \t \r escapes), integer, float,
 // and bool, plus arrays of those. Values are addressed by their dotted path.
 
@@ -48,9 +49,70 @@ impl ToString for TomlError {
 // "server.host" or, at the top level, just "title".
 class Toml {
     data: dict[str, Value]
+    // Every key in file order, for listing a table's keys.
+    order: list[str] = []
+    // How many `[[name]]` entries each array of tables has.
+    counts: dict[str, int] = {}
 }
 
 impl Toml {
+    // The keys directly inside `table` (`""` for the top level), without the
+    // table prefix, in file order. Nested tables are not listed.
+    fun keys(self, table: str) -> list[str] {
+        let prefix = "" if table == "" else table + "."
+        let out: list[str] = []
+        for full in self.order {
+            if full.starts_with(prefix) {
+                let rest = full.substring(prefix.length(), full.length())
+                if rest.index_of(".") < 0 {
+                    out.push(rest)
+                }
+            }
+        }
+        return out
+    }
+
+    // Each `[[name]]` entry as its own Toml, in file order. Empty when the
+    // file has none.
+    fun tables(self, name: str) -> list[Toml] {
+        let out: list[Toml] = []
+        let n = self.counts.get(name).unwrap_or(0)
+        var idx = 0
+        while idx < n {
+            let prefix = "${name}.${idx}."
+            let data: dict[str, Value] = {}
+            let order: list[str] = []
+            for full in self.order {
+                if full.starts_with(prefix) {
+                    let rest = full.substring(prefix.length(), full.length())
+                    data.set(rest, self.data.get(full).unwrap())
+                    order.push(rest)
+                }
+            }
+            let counts: dict[str, int] = {}
+            out.push(Toml(data: data, order: order, counts: counts))
+            idx += 1
+        }
+        return out
+    }
+
+    // An array of strings, skipping non-string items. Empty when absent.
+    fun get_strings(self, key: str) -> list[str] {
+        let out: list[str] = []
+        match self.get_array(key) {
+            case Some(xs) {
+                for x in xs {
+                    match x {
+                        case Str(s) { out.push(s) }
+                        case _ {}
+                    }
+                }
+            }
+            case None {}
+        }
+        return out
+    }
+
     fun get(self, key: str) -> Option[Value] {
         return self.data.get(key)
     }
@@ -157,7 +219,9 @@ impl Toml {
 }
 
 fun parse(text: str) -> Result[Toml, TomlError] {
-    let data: dict[str, Value] = Map.new()
+    let data: dict[str, Value] = {}
+    let order: list[str] = []
+    let counts: dict[str, int] = {}
     var current = ""
     let lines = text.lines()
     var i = 0
@@ -166,6 +230,15 @@ fun parse(text: str) -> Result[Toml, TomlError] {
         let lineno = i + 1
         if line == "" {
             i += 1
+        } else if line.starts_with("[[") {
+            if not line.ends_with("]]") {
+                return Err(TomlError.new(lineno, "malformed array-of-tables header"))
+            }
+            let name = line.substring(2, line.length() - 2).trim()
+            let n = counts.get(name).unwrap_or(0)
+            counts.set(name, n + 1)
+            current = "${name}.${n}"
+            i += 1
         } else if line.starts_with("[") {
             if not line.ends_with("]") {
                 return Err(TomlError.new(lineno, "malformed table header"))
@@ -173,11 +246,11 @@ fun parse(text: str) -> Result[Toml, TomlError] {
             current = line.substring(1, line.length() - 1).trim()
             i += 1
         } else {
-            let eq = line.index_of("=")
+            let eq = _key_end(line)
             if eq < 0 {
                 return Err(TomlError.new(lineno, "expected key = value"))
             }
-            let key = line.substring(0, eq).trim()
+            let key = _unquote_key(line.substring(0, eq).trim())
             if key == "" {
                 return Err(TomlError.new(lineno, "empty key"))
             }
@@ -186,6 +259,9 @@ fun parse(text: str) -> Result[Toml, TomlError] {
                     var full = key
                     if current != "" {
                         full = "${current}.${key}"
+                    }
+                    if not data.has(full) {
+                        order.push(full)
                     }
                     data.set(full, v)
                 }
@@ -196,7 +272,36 @@ fun parse(text: str) -> Result[Toml, TomlError] {
             i += 1
         }
     }
-    return Ok(Toml(data: data))
+    return Ok(Toml(data: data, order: order, counts: counts))
+}
+
+// The index of the `=` that ends the key, skipping a quoted key's contents.
+fun _key_end(line: str) -> int {
+    if line.starts_with("\"") {
+        var i = 1
+        while i < line.length() {
+            let c = line.char_at(i)
+            if c == "\\" {
+                i += 2
+            } else if c == "\"" {
+                let rest = line.substring(i + 1, line.length())
+                let eq = rest.index_of("=")
+                return -1 if eq < 0 else i + 1 + eq
+            } else {
+                i += 1
+            }
+        }
+        return -1
+    }
+    return line.index_of("=")
+}
+
+// `"ctrl+s"` as a key is `ctrl+s`.
+fun _unquote_key(key: str) -> str {
+    if key.length() >= 2 and key.starts_with("\"") and key.ends_with("\"") {
+        return key.substring(1, key.length() - 1)
+    }
+    return key
 }
 
 fun _parse_value(s: str, lineno: int) -> Result[Value, TomlError] {
@@ -311,7 +416,9 @@ fun _strip_comment(line: str) -> str {
     var i = 0
     while i < line.length() {
         let c = line.char_at(i)
-        if c == "\"" {
+        if c == "\\" and in_q {
+            i += 1
+        } else if c == "\"" {
             in_q = not in_q
         } else if c == "#" and not in_q {
             return line.substring(0, i)
