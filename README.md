@@ -53,7 +53,9 @@ Strings have to be quoted, as in real TOML, so a bare word is an error.
 Datetimes and inline tables are not handled.
 
 `t.tables("plugin")` returns each `[[plugin]]` entry as its own `Toml`,
-`t.keys("keys")` lists the keys directly inside a table in file order, and
+`t.keys("keys")` lists the keys directly inside a table in file order,
+`t.keys_under("colors")` lists every key beneath one, keeping dotted names
+such as `"ui.bg"` whole, and
 `t.get_strings("args")` reads an array of strings.
 
 ## Requirements

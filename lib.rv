@@ -72,6 +72,20 @@ impl Toml {
         return out
     }
 
+    // Every key beneath `table`, without the table prefix, in file order. Unlike
+    // `keys`, a dotted remainder is kept whole: `"ui.bg" = ...` inside
+    // `[colors]` lists as `ui.bg`, and so does `bg` inside `[colors.ui]`.
+    fun keys_under(self, table: str) -> list[str] {
+        let prefix = "" if table == "" else table + "."
+        let out: list[str] = []
+        for full in self.order {
+            if full.starts_with(prefix) {
+                out.push(full.substring(prefix.length(), full.length()))
+            }
+        }
+        return out
+    }
+
     // Each `[[name]]` entry as its own Toml, in file order. Empty when the
     // file has none.
     fun tables(self, name: str) -> list[Toml] {

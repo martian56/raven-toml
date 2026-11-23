@@ -104,6 +104,18 @@ fun test_quoted_keys_and_listing() {
     assert_eq_int(t.keys("keys.insert").len(), 1)
 }
 
+fun test_keys_under_keeps_dotted_names() {
+    let t = parse(
+        "[colors]\n\"ui.bg\" = \"#000000\"\nkeyword = \"#ffffff\"\n[colors.mode]\nnormal = \"#111111\"\n",
+    ).unwrap()
+    let ks = t.keys_under("colors")
+    assert_eq_int(ks.len(), 3)
+    assert_eq_str(ks[0], "ui.bg")
+    assert_eq_str(ks[2], "mode.normal")
+    assert_eq_str(t.get_string_or("colors.${ks[0]}", ""), "#000000")
+    assert_eq_int(t.keys("colors").len(), 1)
+}
+
 fun test_escaped_quote_before_comment() {
     let t = parse("s = \"a\\\"b\" # note\n").unwrap()
     assert_eq_str(t.get_string_or("s", ""), "a\"b")
